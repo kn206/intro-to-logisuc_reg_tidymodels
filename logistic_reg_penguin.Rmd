@@ -1,0 +1,91 @@
+---
+title: "log_reg_penguin data"
+author: "Kelvin Nyongesa"
+date: '2022-06-28'
+output: html_document
+---
+### We will classify penguins using a simple logistics regression 
+steps we will follow
+1. load the data set
+2. Clean the data
+3.Train and test
+4. create a model
+5. Evaluate the model
+##1. load the data
+Lets get started by loading the libraries we will be using 
+
+```{r}
+library(tidyverse)
+library(palmerpenguins)
+penguins
+```
+
+###Lets ow do a simple visualize to see how our data set will look 
+```{r}
+
+  ggplot(penguins,aes(flipper_length_mm, bill_length_mm, color = sex, size = body_mass_g)) +
+  geom_point(alpha = 0.5) +
+  facet_wrap(~species)
+
+```
+##2. Clealing the data 
+Given our model will use sex for classification we will drop the missing values. 
+Then drop the data variables we might not in the classification
+```{r}
+penguins_df <- penguins %>%
+  filter(!is.na(sex)) %>%
+  select(-year, -island)
+penguins_df
+```
+##3. Training and testing 
+Here the sex variables been our stata is splited into traning and testing 
+```{r}
+library(tidymodels)
+
+set.seed(123)
+penguin_split <- initial_split(penguins_df, strata = sex)
+penguin_train <- training(penguin_split)
+penguin_test <- testing(penguin_split)
+```
+# we need to evaluate our model by checking on the trained data.
+hence we will use bootstraps to help us evaluate
+now let’s create bootstrap resamples of the training data, to evaluate our models.
+```{r}
+set.seed(123)
+penguin_boot <- bootstraps(penguin_train)
+penguin_boot
+```
+##4. Building the model
+lets set our logistic regression model
+
+```{r}
+glm_spec <- logistic_reg() %>%
+  set_engine("glm")
+
+glm_spec
+```
+let’s start putting together a tidymodels workflow(), a helper object to help manage modeling pipelines with pieces that fit together.
+```{r}
+penguin_wf <- workflow() %>%
+  add_formula(sex ~ .)
+
+penguin_wf
+
+```
+Lets now add a model, and the fit to each of the resamples. First, we can fit the logistic regression model
+```{r}
+glm_rs <- penguin_wf %>%
+  add_model(glm_spec) %>%
+  fit_resamples(
+    resamples = penguin_boot,
+    control = control_resamples(save_pred = TRUE)
+  )
+
+glm_rs
+```
+##5. Evaluate the model
+```{r}
+collect_metrics(glm_rs)
+```
+
+###Now you have created your first working lOGISTIC REGRESSION MODEL
